@@ -1,7 +1,7 @@
 JARVIS - Personal AI Assistant Core
 Anthropic Claude API + Playwright 브라우저 자동화 + ChromaDB 장기 기억
 
-수정 이력:
+마지막 수정 이력:
 - Phase 4: Playwright 브라우저 자동화 통합
 - TTS asyncio 격리 (별도 스레드)
 - 브라우저 자동 복구 로직
@@ -40,9 +40,8 @@ from browser_actions import BrowserActions
 # Phase 5: 장기 기억
 from memory_manager import ChromaMemory
 
-# ═══════════════════════════════════════════════════════════
-# 환경 변수
-# ═══════════════════════════════════════════════════════════
+환경 변수
+
 load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
