@@ -1,0 +1,3 @@
+playwright
+chromadb
+sentence-transformers

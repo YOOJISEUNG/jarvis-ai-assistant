@@ -1,0 +1,2623 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S — Just A Rather Very Intelligent System</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════════
+   JARVIS HUD v2.0 — Cinematic Edition
+   Design Tokens
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  /* 메인 컬러 (시안 톤) */
+  --color-primary: #00bfff;
+  --color-primary-bright: #00e5ff;
+  --color-primary-dim: #4488aa;
+  --color-primary-deep: #1a4466;
+
+  /* 강조 컬러 */
+  --color-accent: #ffaa00;        /* 호박색 (스타크 톤) */
+  --color-accent-dim: #cc7700;
+  --color-active: #00ff99;        /* 활성/성공 */
+  --color-thinking: #ffaa00;      /* 사고 중 */
+  --color-speaking: #00bfff;      /* 말하는 중 */
+  --color-alert: #ff4466;         /* 경고 */
+
+  /* 배경 */
+  --color-bg: #000814;
+  --color-bg-panel: rgba(0, 20, 40, 0.55);
+  --color-bg-deep: rgba(0, 8, 20, 0.85);
+  --color-bg-glow: rgba(0, 100, 180, 0.08);
+
+  /* 보더 */
+  --color-border: rgba(0, 191, 255, 0.18);
+  --color-border-strong: rgba(0, 191, 255, 0.45);
+  --color-border-bright: rgba(0, 229, 255, 0.7);
+
+  /* 텍스트 */
+  --color-text: #aaddff;
+  --color-text-bright: #ccf0ff;
+  --color-text-dim: #5588aa;
+  --color-text-deep: #335577;
+
+  /* 폰트 */
+  --font-display: 'Orbitron', sans-serif;
+  --font-header: 'Rajdhani', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-kr: 'Noto Sans KR', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-kr), var(--font-mono);
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BACKGROUND LAYERS
+   ═══════════════════════════════════════════════════════════ */
+
+/* 메인 격자 그리드 */
+.bg-grid {
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,191,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,191,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  z-index: 0;
+  pointer-events: none;
+  animation: gridDrift 60s linear infinite;
+}
+
+/* 작은 격자 (더 디테일) */
+.bg-grid-fine {
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,191,255,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,191,255,0.012) 1px, transparent 1px);
+  background-size: 12px 12px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes gridDrift {
+  to { background-position: 60px 60px; }
+}
+
+/* 방사형 글로우 */
+.bg-glow {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,80,140,0.18), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(0,40,80,0.3), transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 스캔라인 */
+.bg-scanlines {
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,191,255,0) 0px,
+    rgba(0,191,255,0) 3px,
+    rgba(0,191,255,0.015) 3px,
+    rgba(0,191,255,0.015) 4px
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* 화면 전체 비네팅 */
+.bg-vignette {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.6) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* 활성화 글로우 오버레이 (자비스 응답 시) */
+.activation-glow {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, var(--color-bg-glow), transparent 70%);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.activation-glow.active { opacity: 1; }
+.activation-glow.thinking { background: radial-gradient(ellipse at center, rgba(255,170,0,0.06), transparent 70%); }
+.activation-glow.listening { background: radial-gradient(ellipse at center, rgba(0,255,153,0.06), transparent 70%); }
+
+/* ═══════════════════════════════════════════════════════════
+   화면 4개 코너 데코레이션
+   ═══════════════════════════════════════════════════════════ */
+.corner {
+  position: fixed;
+  width: 80px;
+  height: 80px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.corner svg {
+  width: 100%;
+  height: 100%;
+  stroke: var(--color-primary);
+  stroke-width: 1.5;
+  fill: none;
+  opacity: 0.7;
+  filter: drop-shadow(0 0 6px var(--color-primary));
+}
+
+.corner-tl { top: 6px; left: 6px; }
+.corner-tr { top: 6px; right: 6px; transform: scaleX(-1); }
+.corner-bl { bottom: 6px; left: 6px; transform: scaleY(-1); }
+.corner-br { bottom: 6px; right: 6px; transform: scale(-1, -1); }
+
+/* ═══════════════════════════════════════════════════════════
+   양옆 수직 라벨 (영화 자비스 톤)
+   ═══════════════════════════════════════════════════════════ */
+.side-label {
+  position: fixed;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 8px;
+  color: var(--color-text-dim);
+  z-index: 49;
+  pointer-events: none;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.side-label.left {
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.side-label.right {
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.side-label .dot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: var(--color-active);
+  border-radius: 50%;
+  margin: 8px 0;
+  box-shadow: 0 0 6px var(--color-active);
+  animation: sidePulse 2s ease-in-out infinite;
+}
+
+@keyframes sidePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BOOT SEQUENCE
+   ═══════════════════════════════════════════════════════════ */
+.boot-overlay {
+  position: fixed; inset: 0;
+  background: var(--color-bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 1s ease;
+}
+
+.boot-overlay.fade {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-logo {
+  font-family: var(--font-display);
+  font-size: 72px;
+  font-weight: 800;
+  letter-spacing: 22px;
+  color: var(--color-primary);
+  text-shadow:
+    0 0 40px var(--color-primary),
+    0 0 80px rgba(0, 191, 255, 0.4);
+  margin-bottom: 30px;
+  opacity: 0;
+  animation: bootFadeIn 0.8s 0.2s forwards;
+}
+
+.boot-tag {
+  font-family: var(--font-header);
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: var(--color-text-dim);
+  margin-bottom: 60px;
+  opacity: 0;
+  animation: bootFadeIn 0.8s 0.6s forwards;
+}
+
+.boot-progress {
+  width: 360px;
+  height: 2px;
+  background: rgba(0,191,255,0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.boot-progress::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+  width: 100%;
+  animation: bootScan 1.5s ease-in-out infinite;
+}
+
+.boot-status {
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+  min-height: 16px;
+}
+
+.boot-info {
+  position: absolute;
+  bottom: 40px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  letter-spacing: 3px;
+  text-align: center;
+}
+
+@keyframes bootFadeIn { to { opacity: 1; } }
+@keyframes bootScan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   메인 HUD 레이아웃
+   ═══════════════════════════════════════════════════════════ */
+.hud {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 320px 1fr 340px;
+  grid-template-rows: 80px 1fr 90px;
+  gap: 12px;
+  padding: 12px 40px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+.hud.ready { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════
+   상단 헤더 (업그레이드)
+   ═══════════════════════════════════════════════════════════ */
+.header {
+  grid-column: 1 / -1;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: 380px 1fr 380px;
+  align-items: center;
+  padding: 0 28px;
+  position: relative;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+
+/* 헤더 코너 데코 */
+.header::before, .header::after {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  border-color: var(--color-primary);
+  border-style: solid;
+  opacity: 0.7;
+}
+.header::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.header::after { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+
+/* 헤더 우측 하단 데이터 스트림 */
+.header-stream {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--color-text-deep);
+  white-space: nowrap;
+  width: 60%;
+  overflow: hidden;
+  text-align: center;
+}
+
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 10px;
+  text-shadow: 0 0 25px rgba(0,191,255,0.6);
+}
+
+.header-sub {
+  font-family: var(--font-header);
+  font-size: 9px;
+  color: var(--color-text-dim);
+  letter-spacing: 5px;
+  text-transform: uppercase;
+}
+
+.header-version {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--color-accent);
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+.header-center {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 12px;
+  border-left: 1px solid var(--color-border);
+}
+
+.header-info:first-child { border-left: none; }
+
+.header-info-label {
+  font-family: var(--font-header);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  letter-spacing: 3px;
+}
+
+.header-info-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.header-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.clock {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-shadow: 0 0 15px rgba(0,191,255,0.5);
+  letter-spacing: 4px;
+  line-height: 1;
+}
+
+.date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-dim);
+  letter-spacing: 2px;
+}
+
+.timezone {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--color-text-deep);
+  letter-spacing: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   패널 공통
+   ═══════════════════════════════════════════════════════════ */
+.panel {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  padding: 16px;
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.panel:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: 0 0 20px rgba(0, 191, 255, 0.08);
+}
+
+.panel::before, .panel::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  border-color: var(--color-primary);
+  border-style: solid;
+  opacity: 0.5;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.panel::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.panel::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+.panel:hover::before,
+.panel:hover::after {
+  opacity: 1;
+}
+
+.panel-title {
+  font-family: var(--font-header);
+  font-size: 10px;
+  color: var(--color-primary);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  position: relative;
+}
+
+.panel-title::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--color-primary);
+}
+
+.panel-title-tag {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--color-text-deep);
+  letter-spacing: 1px;
+  text-transform: none;
+}
+
+.panel-section {
+  margin-bottom: 18px;
+}
+
+.panel-section:last-child { margin-bottom: 0; }
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: rgba(0,191,255,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(0,191,255,0.3); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,191,255,0.5); }
+
+/* ═══════════════════════════════════════════════════════════
+   좌측 패널
+   ═══════════════════════════════════════════════════════════ */
+.left-panel {
+  grid-row: 2;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+/* 위치 카드 */
+.location-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(0, 255, 153, 0.04);
+  border: 1px solid rgba(0, 255, 153, 0.15);
+  border-radius: 2px;
+}
+
+.location-pulse {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--color-active);
+  box-shadow: 0 0 12px var(--color-active);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.location-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 1px solid var(--color-active);
+  border-radius: 50%;
+  animation: pulseRing 2s infinite;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.location-city {
+  font-family: var(--font-header);
+  font-size: 14px;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.location-region {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-dim);
+}
+
+.location-coords {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+
+/* 날씨 카드 */
+.weather-card {
+  background: linear-gradient(135deg, rgba(0,191,255,0.06), rgba(0,191,255,0.02));
+  border: 1px solid var(--color-border);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-card::before {
+  content: '';
+  position: absolute;
+  top: -20px; right: -20px;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(0,191,255,0.15), transparent 70%);
+  pointer-events: none;
+}
+
+.weather-main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  position: relative;
+}
+
+.weather-temp {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-shadow: 0 0 15px rgba(0,191,255,0.4);
+  line-height: 1;
+}
+
+.weather-temp-unit {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--color-text-dim);
+}
+
+.weather-desc {
+  font-family: var(--font-kr);
+  font-size: 12px;
+  color: var(--color-text);
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
+.weather-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.weather-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weather-detail-label {
+  font-family: var(--font-header);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  letter-spacing: 2px;
+}
+
+.weather-detail-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* 시스템 리소스 */
+.resource-item {
+  margin-bottom: 10px;
+}
+
+.resource-item:last-child { margin-bottom: 0; }
+
+.resource-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-bottom: 4px;
+}
+
+.resource-label span:first-child {
+  color: var(--color-text-dim);
+  letter-spacing: 1.5px;
+}
+
+.resource-label span:last-child {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.resource-bar {
+  height: 3px;
+  background: rgba(0,191,255,0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.resource-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary-deep), var(--color-primary));
+  box-shadow: 0 0 8px var(--color-primary);
+  transition: width 0.8s ease;
+  position: relative;
+}
+
+.resource-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 12px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4));
+  animation: resourceShine 2s ease-in-out infinite;
+}
+
+.resource-fill.warning {
+  background: linear-gradient(90deg, var(--color-accent-dim), var(--color-accent));
+  box-shadow: 0 0 8px var(--color-accent);
+}
+
+.resource-fill.critical {
+  background: linear-gradient(90deg, #aa2244, var(--color-alert));
+  box-shadow: 0 0 8px var(--color-alert);
+}
+
+@keyframes resourceShine {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* CPU 히스토리 미니 차트 */
+.mini-chart-container {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mini-chart-label {
+  font-family: var(--font-header);
+  font-size: 8px;
+  color: var(--color-text-deep);
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+#cpuChart {
+  width: 100%;
+  height: 30px;
+  display: block;
+}
+
+/* 모듈 상태 */
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.module-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 0;
+}
+
+.module-name {
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+}
+
+.module-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  font-size: 10px;
+}
+
+.module-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-active);
+  box-shadow: 0 0 6px var(--color-active);
+}
+
+.module-dot.offline {
+  background: var(--color-text-deep);
+  box-shadow: none;
+}
+
+.module-dot.standby {
+  background: var(--color-accent);
+  box-shadow: 0 0 6px var(--color-accent);
+}
+
+/* 네트워크 모니터 */
+.network-monitor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.network-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.network-label {
+  color: var(--color-text-dim);
+  letter-spacing: 1px;
+}
+
+.network-value {
+  color: var(--color-active);
+  letter-spacing: 1px;
+}
+
+#networkGraph {
+  width: 100%;
+  height: 28px;
+  margin-top: 6px;
+  display: block;
+}
+
+/* 레이더 */
+.radar-container {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
+}
+
+#radarCanvas {
+  width: 130px;
+  height: 130px;
+}
+
+/* 명령어 가이드 */
+.commands-list {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.9;
+  color: var(--color-text-dim);
+}
+
+.commands-list span {
+  display: block;
+  padding-left: 10px;
+  position: relative;
+  transition: color 0.2s ease, padding-left 0.2s ease;
+  cursor: default;
+}
+
+.commands-list span::before {
+  content: '›';
+  position: absolute;
+  left: 0;
+  color: var(--color-primary-dim);
+}
+
+.commands-list span:hover {
+  color: var(--color-text);
+  padding-left: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   중앙 패널 (메인 비주얼) — 영화 자비스 코어
+   ═══════════════════════════════════════════════════════════ */
+.center-panel {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: radial-gradient(ellipse at center, rgba(0,30,60,0.4), transparent 70%);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.center-visual {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#particleCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#orbitCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+#waveformCanvas {
+  position: absolute;
+  bottom: 25%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 80px;
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+#waveformCanvas.active { opacity: 1; }
+
+.center-status {
+  position: relative;
+  z-index: 5;
+  text-align: center;
+  pointer-events: none;
+}
+
+.status-indicator {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 12px;
+  text-shadow: 0 0 30px var(--color-primary);
+  margin-bottom: 12px;
+  transition: color 0.4s ease, text-shadow 0.4s ease;
+}
+
+.status-text {
+  font-family: var(--font-kr);
+  font-size: 13px;
+  color: var(--color-text-dim);
+  letter-spacing: 3px;
+}
+
+/* 활성화 충격파 */
+.shockwave {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100px; height: 100px;
+  border: 2px solid var(--color-active);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.shockwave.fire {
+  animation: shockwaveExpand 1s ease-out;
+}
+
+@keyframes shockwaveExpand {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(8); opacity: 0; }
+}
+
+/* 데이터 노이즈 (코어 주위에 떠다니는 정보) */
+.data-noise {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  letter-spacing: 1px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.data-noise.tl { top: 20%; left: 10%; }
+.data-noise.tr { top: 18%; right: 10%; text-align: right; }
+.data-noise.bl { bottom: 22%; left: 10%; }
+.data-noise.br { bottom: 24%; right: 10%; text-align: right; }
+
+.data-noise-row {
+  margin-bottom: 2px;
+}
+
+.data-noise-label {
+  color: var(--color-text-deep);
+}
+
+.data-noise-value {
+  color: var(--color-primary-dim);
+  margin-left: 4px;
+}
+
+/* 사용자 부르기 라벨 */
+.center-prompt {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-deep);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  z-index: 5;
+  text-align: center;
+}
+
+.center-prompt-divider {
+  display: inline-block;
+  width: 30px;
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 12px;
+  vertical-align: middle;
+}
+
+.ai-badge {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(0,191,255,0.08);
+  border: 1px solid var(--color-border-strong);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--color-primary);
+  z-index: 5;
+  backdrop-filter: blur(4px);
+}
+
+.ai-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-active);
+  box-shadow: 0 0 8px var(--color-active);
+  animation: aiBadgePulse 2s ease-in-out infinite;
+}
+
+@keyframes aiBadgePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* 텍스트 입력바 */
+.text-input-bar {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  max-width: 700px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  opacity: 0.95;
+}
+
+.text-input {
+  flex: 1;
+  background: rgba(0, 8, 20, 0.85);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-text);
+  padding: 12px 18px;
+  font-family: var(--font-kr), var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  outline: none;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s;
+}
+
+.text-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 25px rgba(0, 191, 255, 0.4);
+  background: rgba(0, 20, 40, 0.95);
+}
+
+.text-input::placeholder {
+  color: var(--color-text-deep);
+  letter-spacing: 2px;
+}
+
+.text-send-btn {
+  background: rgba(0, 191, 255, 0.15);
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-primary);
+  padding: 0 24px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 3px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.text-send-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-bg);
+  box-shadow: 0 0 25px var(--color-primary);
+}
+
+.text-send-btn:active {
+  transform: scale(0.96);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   우측 패널
+   ═══════════════════════════════════════════════════════════ */
+.right-panel {
+  grid-row: 2;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+/* 대화 로그 */
+.conversation-log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.log-entry {
+  padding: 8px 10px;
+  border-left: 2px solid var(--color-border);
+  background: rgba(0,191,255,0.02);
+  font-size: 11px;
+  line-height: 1.5;
+  animation: logSlide 0.4s ease;
+}
+
+@keyframes logSlide {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.log-entry.user {
+  border-left-color: var(--color-active);
+  background: rgba(0,255,153,0.04);
+}
+
+.log-entry.jarvis {
+  border-left-color: var(--color-primary);
+  background: rgba(0,191,255,0.04);
+}
+
+.log-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  margin-bottom: 3px;
+  letter-spacing: 1px;
+}
+
+.log-meta-speaker { color: var(--color-text-dim); font-weight: 600; }
+.user .log-meta-speaker { color: var(--color-active); }
+.jarvis .log-meta-speaker { color: var(--color-primary); }
+
+.log-content {
+  color: var(--color-text);
+  font-family: var(--font-kr);
+}
+
+/* 일정 위젯 */
+.schedule-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  margin-bottom: 5px;
+  background: rgba(0,191,255,0.03);
+  border-left: 2px solid var(--color-border-strong);
+  font-size: 11px;
+}
+
+.schedule-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-primary);
+  min-width: 50px;
+  font-weight: 600;
+}
+
+.schedule-title {
+  color: var(--color-text);
+  flex: 1;
+  font-family: var(--font-kr);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-deep);
+  letter-spacing: 1px;
+}
+
+/* 메모리 그래프 (메모리 사용량 미니 차트) */
+.memory-chart-container {
+  position: relative;
+  height: 60px;
+  margin-top: 6px;
+}
+
+#memoryChart {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+.memory-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-dim);
+}
+
+/* 뉴스 티커 */
+.news-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text);
+  font-family: var(--font-kr);
+  line-height: 1.5;
+  cursor: default;
+  transition: background 0.2s;
+}
+
+.news-item:last-child { border-bottom: none; }
+
+.news-item:hover {
+  background: rgba(0,191,255,0.04);
+}
+
+.news-source {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-primary-dim);
+  margin-top: 2px;
+  letter-spacing: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   하단 바 (확장)
+   ═══════════════════════════════════════════════════════════ */
+.bottom-bar {
+  grid-column: 1 / -1;
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  align-items: center;
+  padding: 0 28px;
+  position: relative;
+  backdrop-filter: blur(8px);
+}
+
+.bottom-bar::before, .bottom-bar::after {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  border-color: var(--color-primary);
+  border-style: solid;
+  opacity: 0.7;
+}
+.bottom-bar::before { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+.bottom-bar::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+.bottom-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
+  border-right: 1px solid var(--color-border);
+  height: 100%;
+  justify-content: center;
+}
+
+.bottom-cell:last-child { border-right: none; }
+
+.bottom-label {
+  font-family: var(--font-header);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.bottom-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--color-primary);
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bottom-cell.online .bottom-value {
+  color: var(--color-active);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   응답 토스트 (우상단)
+   ═══════════════════════════════════════════════════════════ */
+.toast-container {
+  position: fixed;
+  top: 110px;
+  right: 30px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.toast {
+  background: var(--color-bg-deep);
+  border: 1px solid var(--color-border-strong);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text);
+  letter-spacing: 1px;
+  backdrop-filter: blur(8px);
+  position: relative;
+  animation: toastSlide 0.4s ease;
+  box-shadow: 0 0 20px rgba(0, 191, 255, 0.2);
+}
+
+.toast::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--color-primary);
+}
+
+.toast.action::before { background: var(--color-accent); }
+.toast.success::before { background: var(--color-active); }
+.toast.alert::before { background: var(--color-alert); }
+
+.toast-label {
+  font-family: var(--font-header);
+  font-size: 9px;
+  color: var(--color-text-deep);
+  letter-spacing: 2px;
+  margin-bottom: 2px;
+}
+
+.toast-msg {
+  color: var(--color-text);
+}
+
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.toast.fading {
+  animation: toastFade 0.4s ease forwards;
+}
+
+@keyframes toastFade {
+  to { opacity: 0; transform: translateX(30px); }
+}
+
+</style>
+</head>
+<body>
+
+<!-- Background Layers -->
+<div class="bg-grid"></div>
+<div class="bg-grid-fine"></div>
+<div class="bg-glow"></div>
+<div class="bg-scanlines"></div>
+<div class="bg-vignette"></div>
+<div class="activation-glow" id="activationGlow"></div>
+
+<!-- 4 코너 HUD 데코레이션 -->
+<div class="corner corner-tl">
+  <svg viewBox="0 0 80 80">
+    <path d="M 0 25 L 0 0 L 25 0" />
+    <path d="M 5 15 L 5 5 L 15 5" stroke-width="1" opacity="0.5" />
+    <circle cx="3" cy="3" r="2" fill="currentColor" stroke="none" opacity="0.8"/>
+    <text x="10" y="35" font-family="Rajdhani" font-size="7" fill="currentColor" stroke="none" letter-spacing="2">TL-01</text>
+  </svg>
+</div>
+<div class="corner corner-tr">
+  <svg viewBox="0 0 80 80">
+    <path d="M 0 25 L 0 0 L 25 0" />
+    <path d="M 5 15 L 5 5 L 15 5" stroke-width="1" opacity="0.5" />
+    <circle cx="3" cy="3" r="2" fill="currentColor" stroke="none" opacity="0.8"/>
+    <text x="10" y="35" font-family="Rajdhani" font-size="7" fill="currentColor" stroke="none" letter-spacing="2">TR-02</text>
+  </svg>
+</div>
+<div class="corner corner-bl">
+  <svg viewBox="0 0 80 80">
+    <path d="M 0 25 L 0 0 L 25 0" />
+    <path d="M 5 15 L 5 5 L 15 5" stroke-width="1" opacity="0.5" />
+    <circle cx="3" cy="3" r="2" fill="currentColor" stroke="none" opacity="0.8"/>
+    <text x="10" y="35" font-family="Rajdhani" font-size="7" fill="currentColor" stroke="none" letter-spacing="2">BL-03</text>
+  </svg>
+</div>
+<div class="corner corner-br">
+  <svg viewBox="0 0 80 80">
+    <path d="M 0 25 L 0 0 L 25 0" />
+    <path d="M 5 15 L 5 5 L 15 5" stroke-width="1" opacity="0.5" />
+    <circle cx="3" cy="3" r="2" fill="currentColor" stroke="none" opacity="0.8"/>
+    <text x="10" y="35" font-family="Rajdhani" font-size="7" fill="currentColor" stroke="none" letter-spacing="2">BR-04</text>
+  </svg>
+</div>
+
+<!-- 양옆 수직 라벨 -->
+<div class="side-label left">SYSTEM<span class="dot"></span>OPERATIONAL<span class="dot"></span>SECURED</div>
+<div class="side-label right">JARVIS<span class="dot"></span>AI ASSISTANT<span class="dot"></span>ONLINE</div>
+
+<!-- Boot Sequence -->
+<div class="boot-overlay" id="bootOverlay">
+  <div class="boot-logo">J.A.R.V.I.S</div>
+  <div class="boot-tag">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+  <div class="boot-progress"></div>
+  <div class="boot-status" id="bootStatus">시스템 초기화 중...</div>
+  <div class="boot-info">v2.0.1 — STARK INDUSTRIES INTERNAL</div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Main HUD -->
+<div class="hud" id="hud">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-title">J.A.R.V.I.S</div>
+      <div class="header-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+      <div class="header-version">v2.0.1 // BUILD 24052026 // SECURED CHANNEL</div>
+    </div>
+
+    <div class="header-center">
+      <div class="header-info">
+        <div class="header-info-label">WEATHER</div>
+        <div class="header-info-value" id="headerWeather">로딩 중...</div>
+      </div>
+      <div class="header-info">
+        <div class="header-info-label">LOCATION</div>
+        <div class="header-info-value" id="headerLocation">감지 중...</div>
+      </div>
+      <div class="header-info">
+        <div class="header-info-label">USER</div>
+        <div class="header-info-value" id="headerUser">-</div>
+      </div>
+      <div class="header-info">
+        <div class="header-info-label">UPTIME</div>
+        <div class="header-info-value" id="headerUptime">00:00:00</div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="date" id="date">----.--.--</div>
+      <div class="timezone">UTC+09:00 / KOREA</div>
+    </div>
+
+    <div class="header-stream" id="headerStream">▸ MONITORING ALL SYSTEMS ▸ ENCRYPTION: AES-256 ▸ STATUS: NOMINAL ▸</div>
+  </div>
+
+  <!-- Left Panel -->
+  <div class="panel left-panel">
+
+    <div class="panel-section">
+      <div class="panel-title">Location <span class="panel-title-tag">GPS</span></div>
+      <div class="location-card">
+        <div class="location-pulse"></div>
+        <div>
+          <div class="location-city" id="locationCity">감지 중...</div>
+          <div class="location-region" id="locationRegion">-</div>
+          <div class="location-coords" id="locationCoords">LAT --,--- / LON --,---</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Weather <span class="panel-title-tag">LIVE</span></div>
+      <div class="weather-card">
+        <div class="weather-main">
+          <div class="weather-temp" id="weatherTemp">--</div>
+          <div class="weather-temp-unit">°C</div>
+        </div>
+        <div class="weather-desc" id="weatherDesc">로딩 중...</div>
+        <div class="weather-detail">
+          <div class="weather-detail-item">
+            <div class="weather-detail-label">FEELS LIKE</div>
+            <div class="weather-detail-value"><span id="weatherFeels">--</span>°C</div>
+          </div>
+          <div class="weather-detail-item">
+            <div class="weather-detail-label">HUMIDITY</div>
+            <div class="weather-detail-value"><span id="weatherHumidity">--</span>%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">System Resources</div>
+      <div class="resource-item">
+        <div class="resource-label">
+          <span>CPU</span>
+          <span id="cpuVal">0%</span>
+        </div>
+        <div class="resource-bar"><div class="resource-fill" id="cpuBar" style="width:0%"></div></div>
+      </div>
+      <div class="resource-item">
+        <div class="resource-label">
+          <span>MEMORY</span>
+          <span id="memVal">0%</span>
+        </div>
+        <div class="resource-bar"><div class="resource-fill" id="memBar" style="width:0%"></div></div>
+      </div>
+      <div class="resource-item">
+        <div class="resource-label">
+          <span>DISK</span>
+          <span id="diskVal">0%</span>
+        </div>
+        <div class="resource-bar"><div class="resource-fill" id="diskBar" style="width:0%"></div></div>
+      </div>
+
+      <div class="mini-chart-container">
+        <div class="mini-chart-label">CPU HISTORY · 60s</div>
+        <canvas id="cpuChart" width="280" height="30"></canvas>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Modules <span class="panel-title-tag">7/9</span></div>
+      <div class="module-list">
+        <div class="module-row">
+          <span class="module-name">AI CORE</span>
+          <span class="module-status"><span class="module-dot"></span>CLAUDE</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">STT</span>
+          <span class="module-status"><span class="module-dot standby"></span>WHISPER</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">TTS</span>
+          <span class="module-status"><span class="module-dot"></span>EDGE</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">WAKE WORD</span>
+          <span class="module-status"><span class="module-dot standby"></span>STANDBY</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">MEMORY</span>
+          <span class="module-status"><span class="module-dot offline"></span>STANDBY</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">VISION</span>
+          <span class="module-status"><span class="module-dot offline"></span>STANDBY</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">SEARCH</span>
+          <span class="module-status"><span class="module-dot"></span>DDGS</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">WEATHER</span>
+          <span class="module-status"><span class="module-dot"></span>OPEN-W</span>
+        </div>
+        <div class="module-row">
+          <span class="module-name">UI BRIDGE</span>
+          <span class="module-status"><span class="module-dot"></span>ONLINE</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Network <span class="panel-title-tag">LIVE</span></div>
+      <div class="network-monitor">
+        <div class="network-row">
+          <span class="network-label">PING</span>
+          <span class="network-value"><span id="netPing">--</span> ms</span>
+        </div>
+        <div class="network-row">
+          <span class="network-label">SOCKETIO</span>
+          <span class="network-value" id="netSocket">ACTIVE</span>
+        </div>
+        <canvas id="networkGraph" width="280" height="28"></canvas>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Radar</div>
+      <div class="radar-container">
+        <canvas id="radarCanvas" width="130" height="130"></canvas>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Commands</div>
+      <div class="commands-list">
+        <span>유튜브 틀어줘</span>
+        <span>날씨 알려줘</span>
+        <span>오늘 일정</span>
+        <span>메모해줘 [내용]</span>
+        <span>볼륨 높여줘 / 내려줘</span>
+        <span>검색해줘 [내용]</span>
+        <span>네이버 / 구글 열어줘</span>
+        <span>자비스 종료</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Center Panel -->
+  <div class="panel center-panel">
+    <div class="ai-badge">
+      <span class="ai-badge-dot"></span>
+      <span id="aiBadgeText">CLAUDE SONNET 4.6</span>
+    </div>
+
+    <!-- 데이터 노이즈 (코어 주위 정보) -->
+    <div class="data-noise tl">
+      <div class="data-noise-row"><span class="data-noise-label">SYS</span><span class="data-noise-value">JARVIS-CORE</span></div>
+      <div class="data-noise-row"><span class="data-noise-label">MOD</span><span class="data-noise-value">CLAUDE-API</span></div>
+      <div class="data-noise-row"><span class="data-noise-label">VER</span><span class="data-noise-value">2.0.1</span></div>
+    </div>
+    <div class="data-noise tr">
+      <div class="data-noise-row"><span class="data-noise-value" id="noiseLatency">12ms</span><span class="data-noise-label">LATENCY</span></div>
+      <div class="data-noise-row"><span class="data-noise-value" id="noiseToken">0</span><span class="data-noise-label">TOKENS</span></div>
+      <div class="data-noise-row"><span class="data-noise-value" id="noiseQueries">0</span><span class="data-noise-label">QUERIES</span></div>
+    </div>
+    <div class="data-noise bl">
+      <div class="data-noise-row"><span class="data-noise-label">FREQ</span><span class="data-noise-value">24.0 kHz</span></div>
+      <div class="data-noise-row"><span class="data-noise-label">CHAN</span><span class="data-noise-value">STEREO</span></div>
+      <div class="data-noise-row"><span class="data-noise-label">CODEC</span><span class="data-noise-value">MP3</span></div>
+    </div>
+    <div class="data-noise br">
+      <div class="data-noise-row"><span class="data-noise-value" id="noiseTemp">23°C</span><span class="data-noise-label">CORE TEMP</span></div>
+      <div class="data-noise-row"><span class="data-noise-value">NOMINAL</span><span class="data-noise-label">STATUS</span></div>
+      <div class="data-noise-row"><span class="data-noise-value">▲▲▲</span><span class="data-noise-label">SIGNAL</span></div>
+    </div>
+
+    <div class="center-visual">
+      <canvas id="particleCanvas"></canvas>
+      <canvas id="orbitCanvas"></canvas>
+      <canvas id="waveformCanvas" width="800" height="160"></canvas>
+      <div class="shockwave" id="shockwave"></div>
+
+      <div class="center-status">
+        <div class="status-indicator" id="statusIndicator">● STANDBY</div>
+        <div class="status-text" id="statusText">텍스트로 입력하거나 자비스에게 말해보세요</div>
+      </div>
+    </div>
+
+    <div class="text-input-bar">
+      <input
+        type="text"
+        class="text-input"
+        id="textInput"
+        placeholder="TALK TO JARVIS..."
+        maxlength="500"
+        autocomplete="off"
+      />
+      <button class="text-send-btn" id="textSendBtn">SEND</button>
+    </div>
+
+    <div class="center-prompt">
+      <span>SAY "HEY JARVIS"</span>
+      <span class="center-prompt-divider"></span>
+      <span>OR TYPE COMMAND</span>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel panel">
+
+    <div class="panel-section">
+      <div class="panel-title">Conversation Log <span class="panel-title-tag" id="logCount">0</span></div>
+      <div class="conversation-log" id="logContainer">
+        <div class="empty-state">대화 기록 없음 / 입력 대기</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Memory Pattern</div>
+      <div class="memory-chart-container">
+        <canvas id="memoryChart" width="320" height="60"></canvas>
+      </div>
+      <div class="memory-stats">
+        <span>0s</span>
+        <span id="memoryAvg">AVG: --%</span>
+        <span>60s</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Today's Schedule <span class="panel-title-tag">PHASE 3</span></div>
+      <div id="scheduleContainer">
+        <div class="empty-state">일정 모듈 대기 중<br/>(Google Calendar API 통합 예정)</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">News Feed <span class="panel-title-tag">PHASE 3</span></div>
+      <div id="newsContainer">
+        <div class="empty-state">뉴스 모듈 대기 중<br/>(RSS 통합 예정)</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar">
+    <div class="bottom-cell">
+      <div class="bottom-label">Status</div>
+      <div class="bottom-value" id="bottomStatus">STANDBY</div>
+    </div>
+    <div class="bottom-cell">
+      <div class="bottom-label">Last Command</div>
+      <div class="bottom-value" id="lastCommand">-</div>
+    </div>
+    <div class="bottom-cell">
+      <div class="bottom-label">AI Model</div>
+      <div class="bottom-value" id="bottomModel">CLAUDE 4.6</div>
+    </div>
+    <div class="bottom-cell">
+      <div class="bottom-label">Session</div>
+      <div class="bottom-value" id="sessionTime">00:00:00</div>
+    </div>
+    <div class="bottom-cell">
+      <div class="bottom-label">Latency</div>
+      <div class="bottom-value" id="bottomLatency">-- ms</div>
+    </div>
+    <div class="bottom-cell online">
+      <div class="bottom-label">Network</div>
+      <div class="bottom-value" id="networkStatus">● ONLINE</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Socket.IO Client -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+// JARVIS UI Client v2.0 — Main Script
+// ═══════════════════════════════════════════════════════════
+
+// ─── 부팅 시퀀스 ─────────────────────────────────────────
+const bootMessages = [
+  "시스템 초기화 중...",
+  "AI 코어 연결 중... CLAUDE-API",
+  "음성 인식 모듈 로딩... WHISPER",
+  "음성 합성 모듈 로딩... EDGE-TTS",
+  "센서 어레이 동기화...",
+  "보안 채널 활성화... AES-256",
+  "데이터 스트림 연결됨.",
+  "준비 완료."
+];
+
+let bootIdx = 0;
+const bootStatus = document.getElementById('bootStatus');
+
+const bootInterval = setInterval(() => {
+  bootIdx++;
+  if (bootIdx < bootMessages.length) {
+    bootStatus.textContent = bootMessages[bootIdx];
+  } else {
+    clearInterval(bootInterval);
+    setTimeout(finishBoot, 400);
+  }
+}, 380);
+
+function finishBoot() {
+  document.getElementById('bootOverlay').classList.add('fade');
+  document.getElementById('hud').classList.add('ready');
+  setTimeout(() => {
+    document.getElementById('bootOverlay').style.display = 'none';
+    showToast('SYSTEM', 'J.A.R.V.I.S 부팅 완료', 'success');
+  }, 1100);
+}
+
+// ─── 시계 + 세션 타이머 ──────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toTimeString().slice(0, 8);
+  const dateStr = now.getFullYear() + '.'
+    + String(now.getMonth() + 1).padStart(2, '0') + '.'
+    + String(now.getDate()).padStart(2, '0');
+  const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  document.getElementById('date').textContent = dateStr + ' / ' + dayNames[now.getDay()];
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+const sessionStart = Date.now();
+setInterval(() => {
+  const s = Math.floor((Date.now() - sessionStart) / 1000);
+  const h = String(Math.floor(s / 3600)).padStart(2, '0');
+  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  const timeStr = `${h}:${m}:${ss}`;
+  document.getElementById('sessionTime').textContent = timeStr;
+  document.getElementById('headerUptime').textContent = timeStr;
+}, 1000);
+
+// ─── 헤더 스트림 (스크롤 텍스트) ────────────────────────
+const streamMessages = [
+  "▸ MONITORING ALL SYSTEMS",
+  "▸ ENCRYPTION: AES-256",
+  "▸ STATUS: NOMINAL",
+  "▸ AI CORE: CLAUDE SONNET 4.6",
+  "▸ AUDIO: EDGE-TTS / WHISPER-MEDIUM",
+  "▸ MEMORY USAGE: NORMAL",
+  "▸ NETWORK: SECURED CHANNEL"
+];
+let streamIdx = 0;
+setInterval(() => {
+  streamIdx = (streamIdx + 1) % streamMessages.length;
+  const visible = [
+    streamMessages[streamIdx],
+    streamMessages[(streamIdx + 1) % streamMessages.length],
+    streamMessages[(streamIdx + 2) % streamMessages.length]
+  ].join(' ');
+  document.getElementById('headerStream').textContent = visible + ' ▸';
+}, 3500);
+
+// ─── 상태 관리 ────────────────────────────────────────────
+let currentStatus = 'standby';
+
+const statusConfig = {
+  standby:   { icon: '● STANDBY',   color: 'var(--color-text-dim)',  msg: '텍스트로 입력하거나 자비스에게 말해보세요',  short: 'STANDBY' },
+  listening: { icon: '◉ LISTENING', color: 'var(--color-active)',    msg: '듣고 있습니다, 지승님...',                  short: 'LISTENING' },
+  thinking:  { icon: '◈ THINKING',  color: 'var(--color-thinking)',  msg: '생각 중...',                                short: 'THINKING' },
+  speaking:  { icon: '◆ SPEAKING',  color: 'var(--color-speaking)',  msg: '응답 중...',                                short: 'SPEAKING' },
+};
+
+function setStatus(status) {
+  const cfg = statusConfig[status] || statusConfig.standby;
+  const prevStatus = currentStatus;
+  currentStatus = status;
+
+  const ind = document.getElementById('statusIndicator');
+  ind.textContent = cfg.icon;
+  ind.style.color = cfg.color;
+  ind.style.textShadow = `0 0 30px ${cfg.color}`;
+
+  document.getElementById('statusText').textContent = cfg.msg;
+  document.getElementById('bottomStatus').textContent = cfg.short;
+  document.getElementById('bottomStatus').style.color = cfg.color;
+
+  // 활성화 글로우 관리
+  const glow = document.getElementById('activationGlow');
+  glow.classList.remove('active', 'thinking', 'listening');
+  if (status === 'speaking') glow.classList.add('active');
+  else if (status === 'thinking') glow.classList.add('thinking');
+  else if (status === 'listening') glow.classList.add('listening');
+
+  // 상태 전환 시 충격파
+  if (prevStatus === 'standby' && status !== 'standby') {
+    fireShockwave();
+  }
+
+  // 음성 파형 표시
+  const wfCanvas = document.getElementById('waveformCanvas');
+  if (status === 'listening' || status === 'speaking') {
+    wfCanvas.classList.add('active');
+  } else {
+    wfCanvas.classList.remove('active');
+  }
+}
+
+function fireShockwave() {
+  const sw = document.getElementById('shockwave');
+  sw.classList.remove('fire');
+  void sw.offsetWidth;
+  sw.classList.add('fire');
+}
+
+// ─── 토스트 알림 ──────────────────────────────────────────
+function showToast(label, msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="toast-label">${label}</div>
+    <div class="toast-msg">${escapeHtml(msg)}</div>
+  `;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('fading');
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
+}
+
+// ─── 대화 로그 ────────────────────────────────────────────
+const logContainer = document.getElementById('logContainer');
+let hasFirstLog = false;
+let logCount = 0;
+
+function addLog(speaker, text) {
+  if (!hasFirstLog) {
+    logContainer.innerHTML = '';
+    hasFirstLog = true;
+  }
+
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${speaker}`;
+
+  const now = new Date().toTimeString().slice(0, 8);
+  const name = speaker === 'user' ? '지승님' : 'JARVIS';
+
+  entry.innerHTML = `
+    <div class="log-meta">
+      <span class="log-meta-speaker">${name}</span>
+      <span>${now}</span>
+    </div>
+    <div class="log-content">${escapeHtml(text)}</div>
+  `;
+
+  logContainer.appendChild(entry);
+  logContainer.scrollTop = logContainer.scrollHeight;
+
+  logCount++;
+  document.getElementById('logCount').textContent = logCount;
+
+  if (speaker === 'user') {
+    document.getElementById('lastCommand').textContent = text.length > 22 ? text.slice(0, 22) + '...' : text;
+    // 쿼리 카운터 증가
+    const q = document.getElementById('noiseQueries');
+    q.textContent = parseInt(q.textContent) + 1;
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ─── 파티클 시스템 ────────────────────────────────────────
+const pCanvas = document.getElementById('particleCanvas');
+const pCtx = pCanvas.getContext('2d');
+
+function resizeParticle() {
+  const rect = pCanvas.parentElement.getBoundingClientRect();
+  pCanvas.width = rect.width;
+  pCanvas.height = rect.height;
+}
+resizeParticle();
+window.addEventListener('resize', resizeParticle);
+
+const particles = Array.from({ length: 200 }, () => ({
+  angle: Math.random() * Math.PI * 2,
+  baseRadius: 70 + Math.random() * 140,
+  speed: 0.001 + Math.random() * 0.006,
+  size: 0.5 + Math.random() * 2.2,
+  opacity: 0.2 + Math.random() * 0.7,
+  drift: Math.random() * 0.02,
+  z: Math.random(),  // 3D 깊이 (시각적 깊이감)
+}));
+
+let frame = 0;
+
+function getStatusColor() {
+  if (currentStatus === 'listening') return '0, 255, 153';
+  if (currentStatus === 'thinking') return '255, 170, 0';
+  if (currentStatus === 'speaking') return '0, 191, 255';
+  return '0, 120, 200';
+}
+
+function drawParticles() {
+  const w = pCanvas.width;
+  const h = pCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const color = getStatusColor();
+  const speedMult = currentStatus === 'listening' ? 3
+                  : currentStatus === 'speaking' ? 2.2
+                  : currentStatus === 'thinking' ? 2.5 : 1;
+
+  pCtx.clearRect(0, 0, w, h);
+
+  // 중앙 큰 글로우
+  const grd = pCtx.createRadialGradient(cx, cy, 0, cx, cy, 220);
+  grd.addColorStop(0, `rgba(${color}, 0.22)`);
+  grd.addColorStop(0.4, `rgba(${color}, 0.06)`);
+  grd.addColorStop(1, 'transparent');
+  pCtx.fillStyle = grd;
+  pCtx.fillRect(0, 0, w, h);
+
+  // 동심원 링 (6겹)
+  for (let r = 1; r <= 6; r++) {
+    const baseR = 45 * r;
+    const pulse = Math.sin(frame * 0.025 * r) * 8;
+    pCtx.beginPath();
+    pCtx.arc(cx, cy, baseR + pulse, 0, Math.PI * 2);
+    pCtx.strokeStyle = `rgba(${color}, ${0.14 - r * 0.018})`;
+    pCtx.lineWidth = 1;
+    pCtx.stroke();
+  }
+
+  // 파티클 (z 깊이 적용 - 멀리있는건 작고 흐림)
+  particles.forEach(p => {
+    p.angle += p.speed * speedMult;
+    const pulse = Math.sin(frame * 0.025 + p.drift) * 20;
+    const r = (p.baseRadius + pulse) * (0.7 + p.z * 0.6);
+    const x = cx + Math.cos(p.angle) * r;
+    const y = cy + Math.sin(p.angle) * r;
+    const sizeMult = 0.5 + p.z;
+    const opacityMult = 0.4 + p.z * 0.6;
+
+    pCtx.beginPath();
+    pCtx.arc(x, y, p.size * sizeMult, 0, Math.PI * 2);
+    pCtx.fillStyle = `rgba(${color}, ${p.opacity * opacityMult})`;
+    pCtx.fill();
+  });
+
+  // 회전 라인 (6개)
+  for (let i = 0; i < 6; i++) {
+    const angle = frame * 0.005 + (i * Math.PI / 3);
+    const len = 130 + Math.sin(frame * 0.02 + i) * 15;
+    const x1 = cx + Math.cos(angle) * 50;
+    const y1 = cy + Math.sin(angle) * 50;
+    const x2 = cx + Math.cos(angle) * len;
+    const y2 = cy + Math.sin(angle) * len;
+
+    pCtx.beginPath();
+    pCtx.moveTo(x1, y1);
+    pCtx.lineTo(x2, y2);
+    pCtx.strokeStyle = `rgba(${color}, 0.2)`;
+    pCtx.lineWidth = 1;
+    pCtx.stroke();
+  }
+
+  // 중앙 코어 (이중)
+  const coreSize = 10 + Math.sin(frame * 0.1) * 3;
+  pCtx.beginPath();
+  pCtx.arc(cx, cy, coreSize, 0, Math.PI * 2);
+  pCtx.fillStyle = `rgba(${color}, 0.95)`;
+  pCtx.shadowBlur = 35;
+  pCtx.shadowColor = `rgb(${color})`;
+  pCtx.fill();
+  pCtx.shadowBlur = 0;
+
+  // 내부 코어 (밝은 점)
+  pCtx.beginPath();
+  pCtx.arc(cx, cy, coreSize * 0.4, 0, Math.PI * 2);
+  pCtx.fillStyle = `rgba(255, 255, 255, 0.9)`;
+  pCtx.fill();
+
+  frame++;
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// ─── 외부 회전 링 (코어 둘러싼 SVG-like 링) ─────────────
+const oCanvas = document.getElementById('orbitCanvas');
+const oCtx = oCanvas.getContext('2d');
+
+function resizeOrbit() {
+  const rect = oCanvas.parentElement.getBoundingClientRect();
+  oCanvas.width = rect.width;
+  oCanvas.height = rect.height;
+}
+resizeOrbit();
+window.addEventListener('resize', resizeOrbit);
+
+let orbitAngle1 = 0;
+let orbitAngle2 = 0;
+
+function drawOrbits() {
+  const w = oCanvas.width;
+  const h = oCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const color = getStatusColor();
+
+  oCtx.clearRect(0, 0, w, h);
+
+  // 외부 링 1 (점선)
+  oCtx.save();
+  oCtx.translate(cx, cy);
+  oCtx.rotate(orbitAngle1);
+  oCtx.beginPath();
+  oCtx.setLineDash([8, 6]);
+  oCtx.arc(0, 0, 200, 0, Math.PI * 2);
+  oCtx.strokeStyle = `rgba(${color}, 0.4)`;
+  oCtx.lineWidth = 1;
+  oCtx.stroke();
+
+  // 외부 링 위의 마커들 (4개)
+  oCtx.setLineDash([]);
+  for (let i = 0; i < 4; i++) {
+    const a = (i * Math.PI / 2);
+    const x = Math.cos(a) * 200;
+    const y = Math.sin(a) * 200;
+    oCtx.beginPath();
+    oCtx.arc(x, y, 4, 0, Math.PI * 2);
+    oCtx.fillStyle = `rgba(${color}, 0.8)`;
+    oCtx.fill();
+    // 작은 라인
+    oCtx.beginPath();
+    oCtx.moveTo(x * 0.95, y * 0.95);
+    oCtx.lineTo(x * 1.05, y * 1.05);
+    oCtx.strokeStyle = `rgba(${color}, 0.6)`;
+    oCtx.lineWidth = 1.5;
+    oCtx.stroke();
+  }
+  oCtx.restore();
+
+  // 외부 링 2 (반대 방향, 더 큰 반지름)
+  oCtx.save();
+  oCtx.translate(cx, cy);
+  oCtx.rotate(-orbitAngle2);
+  oCtx.beginPath();
+  oCtx.setLineDash([2, 4]);
+  oCtx.arc(0, 0, 240, 0, Math.PI * 2);
+  oCtx.strokeStyle = `rgba(${color}, 0.25)`;
+  oCtx.lineWidth = 1;
+  oCtx.stroke();
+  oCtx.setLineDash([]);
+
+  // 마커 6개
+  for (let i = 0; i < 6; i++) {
+    const a = (i * Math.PI / 3);
+    const x = Math.cos(a) * 240;
+    const y = Math.sin(a) * 240;
+    oCtx.beginPath();
+    oCtx.arc(x, y, 2, 0, Math.PI * 2);
+    oCtx.fillStyle = `rgba(${color}, 0.6)`;
+    oCtx.fill();
+  }
+  oCtx.restore();
+
+  // 내부 링 (가까운, 빠른)
+  oCtx.save();
+  oCtx.translate(cx, cy);
+  oCtx.rotate(orbitAngle1 * 2);
+  oCtx.beginPath();
+  oCtx.setLineDash([2, 8]);
+  oCtx.arc(0, 0, 160, 0, Math.PI * 2);
+  oCtx.strokeStyle = `rgba(${color}, 0.3)`;
+  oCtx.lineWidth = 1;
+  oCtx.stroke();
+  oCtx.restore();
+
+  // 속도는 상태에 따라
+  const speedMult = currentStatus === 'standby' ? 1 : 2;
+  orbitAngle1 += 0.003 * speedMult;
+  orbitAngle2 += 0.005 * speedMult;
+
+  requestAnimationFrame(drawOrbits);
+}
+drawOrbits();
+
+// ─── 음성 파형 ─────────────────────────────────────────
+const wfCanvas = document.getElementById('waveformCanvas');
+const wfCtx = wfCanvas.getContext('2d');
+let waveformData = new Array(64).fill(0);
+
+function drawWaveform() {
+  const w = wfCanvas.width;
+  const h = wfCanvas.height;
+  const cy = h / 2;
+
+  wfCtx.clearRect(0, 0, w, h);
+
+  if (!wfCanvas.classList.contains('active')) {
+    requestAnimationFrame(drawWaveform);
+    return;
+  }
+
+  const color = getStatusColor();
+  const bars = waveformData.length;
+  const barWidth = w / bars;
+
+  // 좌우 대칭 막대
+  for (let i = 0; i < bars; i++) {
+    const amp = waveformData[i] || 0;
+    const barH = Math.min(amp * h * 0.9, h);
+    const x = i * barWidth;
+
+    const grad = wfCtx.createLinearGradient(0, cy - barH/2, 0, cy + barH/2);
+    grad.addColorStop(0, `rgba(${color}, 0.95)`);
+    grad.addColorStop(0.5, `rgba(${color}, 0.5)`);
+    grad.addColorStop(1, `rgba(${color}, 0.95)`);
+
+    wfCtx.fillStyle = grad;
+    wfCtx.fillRect(x + 1, cy - barH/2, barWidth - 2, barH);
+  }
+
+  // 중앙선
+  wfCtx.beginPath();
+  wfCtx.moveTo(0, cy);
+  wfCtx.lineTo(w, cy);
+  wfCtx.strokeStyle = `rgba(${color}, 0.25)`;
+  wfCtx.lineWidth = 1;
+  wfCtx.stroke();
+
+  // 데이터 자연 감쇠
+  waveformData = waveformData.map(v => v * 0.92);
+
+  requestAnimationFrame(drawWaveform);
+}
+drawWaveform();
+
+// 더미 파형 생성기
+setInterval(() => {
+  if (wfCanvas.classList.contains('active')) {
+    waveformData = waveformData.map((v) => {
+      const ambient = currentStatus === 'speaking' ? 0.4 : 0.18;
+      const noise = Math.random() * ambient;
+      return Math.max(v, noise);
+    });
+  }
+}, 75);
+
+// ─── 레이더 ──────────────────────────────────────────────
+const rCanvas = document.getElementById('radarCanvas');
+const rCtx = rCanvas.getContext('2d');
+let radarAngle = 0;
+const blips = [];
+
+function spawnBlip() {
+  blips.push({
+    angle: Math.random() * Math.PI * 2,
+    dist: 0.2 + Math.random() * 0.7,
+    life: 1.0,
+  });
+  if (blips.length > 6) blips.shift();
+}
+setInterval(spawnBlip, 2500);
+
+function drawRadar() {
+  const w = rCanvas.width;
+  const h = rCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const R = w / 2 - 6;
+
+  rCtx.clearRect(0, 0, w, h);
+
+  // 동심원 4겹
+  [0.25, 0.5, 0.75, 1].forEach(s => {
+    rCtx.beginPath();
+    rCtx.arc(cx, cy, R * s, 0, Math.PI * 2);
+    rCtx.strokeStyle = 'rgba(0, 191, 255, 0.15)';
+    rCtx.lineWidth = 1;
+    rCtx.stroke();
+  });
+
+  // 십자선
+  rCtx.strokeStyle = 'rgba(0, 191, 255, 0.1)';
+  rCtx.beginPath();
+  rCtx.moveTo(cx, cy - R); rCtx.lineTo(cx, cy + R);
+  rCtx.moveTo(cx - R, cy); rCtx.lineTo(cx + R, cy);
+  rCtx.stroke();
+
+  // 회전 스윕
+  rCtx.save();
+  rCtx.translate(cx, cy);
+  rCtx.rotate(radarAngle);
+
+  const grad = rCtx.createRadialGradient(0, 0, 0, 0, 0, R);
+  grad.addColorStop(0, 'rgba(0, 191, 255, 0.4)');
+  grad.addColorStop(1, 'rgba(0, 191, 255, 0)');
+
+  rCtx.beginPath();
+  rCtx.moveTo(0, 0);
+  rCtx.arc(0, 0, R, -0.5, 0);
+  rCtx.fillStyle = grad;
+  rCtx.fill();
+
+  rCtx.beginPath();
+  rCtx.moveTo(0, 0);
+  rCtx.lineTo(R, 0);
+  rCtx.strokeStyle = 'rgba(0, 191, 255, 0.9)';
+  rCtx.lineWidth = 1.5;
+  rCtx.stroke();
+
+  rCtx.restore();
+
+  // Blip 점들
+  blips.forEach(b => {
+    const x = cx + Math.cos(b.angle) * R * b.dist;
+    const y = cy + Math.sin(b.angle) * R * b.dist;
+    rCtx.beginPath();
+    rCtx.arc(x, y, 2.5 * b.life, 0, Math.PI * 2);
+    rCtx.fillStyle = `rgba(0, 255, 153, ${b.life})`;
+    rCtx.fill();
+    b.life -= 0.005;
+  });
+
+  for (let i = blips.length - 1; i >= 0; i--) {
+    if (blips[i].life <= 0) blips.splice(i, 1);
+  }
+
+  radarAngle += 0.025;
+  requestAnimationFrame(drawRadar);
+}
+drawRadar();
+
+// ─── CPU 히스토리 차트 ──────────────────────────────────
+const cpuChart = document.getElementById('cpuChart');
+const cpuChartCtx = cpuChart.getContext('2d');
+const cpuHistory = new Array(60).fill(0);
+
+function drawCpuChart() {
+  const w = cpuChart.width;
+  const h = cpuChart.height;
+  cpuChartCtx.clearRect(0, 0, w, h);
+
+  // 가이드라인 (50%, 100%)
+  cpuChartCtx.strokeStyle = 'rgba(0, 191, 255, 0.1)';
+  cpuChartCtx.beginPath();
+  cpuChartCtx.moveTo(0, h * 0.5);
+  cpuChartCtx.lineTo(w, h * 0.5);
+  cpuChartCtx.stroke();
+
+  // 데이터 라인
+  const step = w / (cpuHistory.length - 1);
+  cpuChartCtx.beginPath();
+  cpuHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / 100) * h;
+    if (i === 0) cpuChartCtx.moveTo(x, y);
+    else cpuChartCtx.lineTo(x, y);
+  });
+
+  // 그라데이션 채우기
+  cpuChartCtx.lineTo(w, h);
+  cpuChartCtx.lineTo(0, h);
+  cpuChartCtx.closePath();
+  const grad = cpuChartCtx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(0, 191, 255, 0.3)');
+  grad.addColorStop(1, 'rgba(0, 191, 255, 0)');
+  cpuChartCtx.fillStyle = grad;
+  cpuChartCtx.fill();
+
+  // 라인
+  cpuChartCtx.beginPath();
+  cpuHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / 100) * h;
+    if (i === 0) cpuChartCtx.moveTo(x, y);
+    else cpuChartCtx.lineTo(x, y);
+  });
+  cpuChartCtx.strokeStyle = 'rgba(0, 191, 255, 0.8)';
+  cpuChartCtx.lineWidth = 1.5;
+  cpuChartCtx.stroke();
+}
+
+// ─── 메모리 차트 ────────────────────────────────────────
+const memoryChart = document.getElementById('memoryChart');
+const memoryChartCtx = memoryChart.getContext('2d');
+const memoryHistory = new Array(60).fill(0);
+
+function drawMemoryChart() {
+  const w = memoryChart.width;
+  const h = memoryChart.height;
+  memoryChartCtx.clearRect(0, 0, w, h);
+
+  // 가이드라인
+  memoryChartCtx.strokeStyle = 'rgba(0, 191, 255, 0.08)';
+  memoryChartCtx.setLineDash([2, 4]);
+  [0.25, 0.5, 0.75].forEach(s => {
+    memoryChartCtx.beginPath();
+    memoryChartCtx.moveTo(0, h * s);
+    memoryChartCtx.lineTo(w, h * s);
+    memoryChartCtx.stroke();
+  });
+  memoryChartCtx.setLineDash([]);
+
+  // 막대 차트
+  const step = w / memoryHistory.length;
+  memoryHistory.forEach((v, i) => {
+    const x = i * step;
+    const barH = (v / 100) * h;
+
+    const grad = memoryChartCtx.createLinearGradient(0, h - barH, 0, h);
+    grad.addColorStop(0, 'rgba(0, 229, 255, 0.7)');
+    grad.addColorStop(1, 'rgba(0, 100, 180, 0.2)');
+    memoryChartCtx.fillStyle = grad;
+    memoryChartCtx.fillRect(x + 1, h - barH, step - 2, barH);
+  });
+
+  // 평균 계산
+  const avg = memoryHistory.reduce((a, b) => a + b, 0) / memoryHistory.length;
+  document.getElementById('memoryAvg').textContent = `AVG: ${avg.toFixed(0)}%`;
+}
+
+// ─── 네트워크 그래프 ────────────────────────────────────
+const networkGraph = document.getElementById('networkGraph');
+const networkGraphCtx = networkGraph.getContext('2d');
+const pingHistory = new Array(40).fill(0);
+
+function drawNetworkGraph() {
+  const w = networkGraph.width;
+  const h = networkGraph.height;
+  networkGraphCtx.clearRect(0, 0, w, h);
+
+  const step = w / (pingHistory.length - 1);
+  networkGraphCtx.beginPath();
+  pingHistory.forEach((v, i) => {
+    const x = i * step;
+    // ping 200ms = max
+    const y = h - (Math.min(v, 200) / 200) * h;
+    if (i === 0) networkGraphCtx.moveTo(x, y);
+    else networkGraphCtx.lineTo(x, y);
+  });
+  networkGraphCtx.strokeStyle = 'rgba(0, 255, 153, 0.8)';
+  networkGraphCtx.lineWidth = 1.5;
+  networkGraphCtx.stroke();
+
+  // 채우기
+  networkGraphCtx.lineTo(w, h);
+  networkGraphCtx.lineTo(0, h);
+  networkGraphCtx.closePath();
+  const grad = networkGraphCtx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(0, 255, 153, 0.2)');
+  grad.addColorStop(1, 'rgba(0, 255, 153, 0)');
+  networkGraphCtx.fillStyle = grad;
+  networkGraphCtx.fill();
+}
+
+// ─── 핑 측정 (가짜 시뮬레이션) ──────────────────────────
+function measurePing() {
+  // socket이 연결되어있으면 실제 핑 측정 가능, 일단 시뮬레이션
+  const ping = Math.floor(15 + Math.random() * 35 + Math.sin(Date.now() / 5000) * 10);
+  pingHistory.push(ping);
+  if (pingHistory.length > 40) pingHistory.shift();
+  document.getElementById('netPing').textContent = ping;
+  document.getElementById('bottomLatency').textContent = ping + ' ms';
+  document.getElementById('noiseLatency').textContent = ping + 'ms';
+  drawNetworkGraph();
+}
+setInterval(measurePing, 1000);
+
+// 코어 온도 시뮬레이션 (가짜, 23-31도 변동)
+setInterval(() => {
+  const temp = Math.floor(23 + Math.random() * 8);
+  document.getElementById('noiseTemp').textContent = temp + '°C';
+}, 3000);
+
+// ─── Socket.IO ───────────────────────────────────────────
+const socket = io();
+
+socket.on('connect', () => {
+  document.getElementById('networkStatus').textContent = '● ONLINE';
+  document.getElementById('networkStatus').style.color = 'var(--color-active)';
+  document.getElementById('netSocket').textContent = 'ACTIVE';
+  showToast('NETWORK', 'UI 서버 연결됨', 'success');
+  requestBrowserLocation();
+});
+
+socket.on('disconnect', () => {
+  document.getElementById('networkStatus').textContent = '● OFFLINE';
+  document.getElementById('networkStatus').style.color = 'var(--color-alert)';
+  document.getElementById('netSocket').textContent = 'OFFLINE';
+  showToast('NETWORK', 'UI 서버 연결 끊김', 'alert');
+});
+
+socket.on('status_update', (d) => setStatus(d.status || 'standby'));
+
+socket.on('log_update', (d) => addLog(d.speaker || 'jarvis', d.text || ''));
+
+socket.on('system_update', (d) => {
+  // CPU
+  document.getElementById('cpuVal').textContent = d.cpu + '%';
+  const cpuBar = document.getElementById('cpuBar');
+  cpuBar.style.width = d.cpu + '%';
+  cpuBar.classList.remove('warning', 'critical');
+  if (d.cpu > 80) cpuBar.classList.add('critical');
+  else if (d.cpu > 60) cpuBar.classList.add('warning');
+
+  cpuHistory.push(d.cpu);
+  if (cpuHistory.length > 60) cpuHistory.shift();
+  drawCpuChart();
+
+  // Memory
+  document.getElementById('memVal').textContent = d.mem + '%';
+  const memBar = document.getElementById('memBar');
+  memBar.style.width = d.mem + '%';
+  memBar.classList.remove('warning', 'critical');
+  if (d.mem > 80) memBar.classList.add('critical');
+  else if (d.mem > 60) memBar.classList.add('warning');
+
+  memoryHistory.push(d.mem);
+  if (memoryHistory.length > 60) memoryHistory.shift();
+  drawMemoryChart();
+
+  // Disk
+  if (d.disk !== undefined) {
+    document.getElementById('diskVal').textContent = d.disk + '%';
+    const diskBar = document.getElementById('diskBar');
+    diskBar.style.width = d.disk + '%';
+    diskBar.classList.remove('warning', 'critical');
+    if (d.disk > 90) diskBar.classList.add('critical');
+    else if (d.disk > 75) diskBar.classList.add('warning');
+  }
+});
+
+socket.on('weather_update', (d) => {
+  document.getElementById('weatherTemp').textContent = d.temp;
+  document.getElementById('weatherDesc').textContent = d.desc;
+  document.getElementById('weatherFeels').textContent = d.feels;
+  document.getElementById('weatherHumidity').textContent = d.humidity;
+  document.getElementById('headerWeather').textContent = `${d.temp}°C / ${d.desc}`;
+});
+
+socket.on('location_update', (d) => {
+  document.getElementById('locationCity').textContent = d.city;
+  document.getElementById('locationRegion').textContent = d.region || '-';
+  document.getElementById('headerLocation').textContent = d.city;
+  if (d.lat !== undefined && d.lon !== undefined) {
+    document.getElementById('locationCoords').textContent =
+      `LAT ${d.lat.toFixed(3)} / LON ${d.lon.toFixed(3)}`;
+  }
+});
+
+socket.on('user_info', (d) => {
+  document.getElementById('headerUser').textContent = d.name || '-';
+});
+
+socket.on('waveform_update', (d) => {
+  if (Array.isArray(d.data)) {
+    waveformData = d.data;
+  }
+});
+
+// ─── 브라우저 GPS ────────────────────────────────────────
+function requestBrowserLocation() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      socket.emit('update_location', {
+        lat: pos.coords.latitude,
+        lon: pos.coords.longitude,
+      });
+    },
+    () => { /* 거부 시 IP 기반 폴백 사용 */ }
+  );
+}
+
+// ─── 텍스트 입력 처리 ────────────────────────────────────
+const textInput = document.getElementById('textInput');
+const textSendBtn = document.getElementById('textSendBtn');
+
+function sendTextInput() {
+  const text = textInput.value.trim();
+  if (!text) return;
+  socket.emit('user_text_input', { text });
+  // 즉시 UI에 표시 (서버 echo 안 기다림)
+  // server.py가 echo도 하므로 중복 방지를 위해 emit만
+  textInput.value = '';
+  textInput.focus();
+}
+
+textSendBtn.addEventListener('click', sendTextInput);
+textInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendTextInput();
+});
+
+// 페이지 로드 후 입력창 자동 포커스
+setTimeout(() => textInput.focus(), 3500);
+
+// ─── 초기 차트 렌더링 ────────────────────────────────────
+drawCpuChart();
+drawMemoryChart();
+drawNetworkGraph();
+
+</script>
+</body>
+</html>
