@@ -1,4 +1,3 @@
-cat > ARCHITECTURE.md << 'EOF'
 # JARVIS Architecture
 
 ## 설계 원칙
