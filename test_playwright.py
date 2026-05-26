@@ -1,15 +1,9 @@
-"""
 Playwright 첫 테스트 — WSL에서 Windows 브라우저 띄우기.
 
-WHY 이 스크립트:
+스크립트 제작 이유는 다음과 같다
 - Playwright가 WSL 환경에서 잘 작동하는지 검증
 - 실제 사이트 (유튜브) 접속 가능한지 확인
 - 자비스 코드에 통합하기 전 격리 테스트
-
-⚠️ 파일명 주의: 'playwright.py' 로 저장하지 말 것!
-   파이썬이 자기 자신을 import 하려고 시도해서 ModuleNotFoundError 발생.
-   반드시 'test_playwright.py' 또는 다른 이름 사용.
-"""
 
 import sys
 import time
